@@ -12,7 +12,7 @@ RUN go mod download
 COPY . .
 
 # テンプレートファイルをコピー
-COPY templates/ ./templates/
+COPY templates/ /app/templates/
 
 # Goアプリケーションをビルド
 RUN go build -o server .
