@@ -48,7 +48,7 @@ func main() {
 
 	// テンプレートのレンダラーをセットアップ
 	renderer := &TemplateRenderer{
-		templates: template.Must(template.ParseGlob("templates/*.html")),
+		templates: template.Must(template.ParseGlob("/app/templates/*.html")),
 	}
 	e.Renderer = renderer
 
