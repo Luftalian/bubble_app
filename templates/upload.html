@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #uploadSection {
+            margin-bottom: 20px;
+        }
+        #uploadSection form {
+            margin-bottom: 10px;
+        }
+        .container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .image-container, .table-container {
+            width: 48%;
+        }
+        .image-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* 中央揃え */
+        }
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 20px;
+        }
+        .table-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-container th, .table-container td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .table-container th {
+            background-color: #f2f2f2;
+        }
+        #imageWidthDisplay {
+            margin-bottom: 10px;
+        }
+        .imageSize {
+            margin-left: 50%;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Upload File</h1>
+
+    <!-- アップロードフォームセクション -->
+    <div id="uploadSection">
+        <form id="uploadForm" enctype="multipart/form-data">
+            <input type="file" name="file" id="fileInput" />
+            <input type="submit" value="Upload">
+        </form>
+    </div>
+
+    <!-- 画像の横幅表示 -->
+    <div id="imageWidthDisplay" class="imageSize">
+        <!-- ここに画像の横幅(px)が表示されます -->
+    </div>
+
+    <!-- マイクロメートル変換入力欄 -->
+    <div class="imageSize">
+        <label for="micrometerInput">Enter the width of the image in micrometers:</label>
+        <input type="number" id="micrometerInput" placeholder="e.g. 1000">
+        <button onclick="convertToMicrometers()">Convert to Micrometers</button>
+    </div>
+
+    <!-- 結果表示セクション -->
+    <div class="container">
+        <!-- 左側: 画像 -->
+        <div class="image-container" id="imageContainer">
+            <!-- 画像がここに表示されます -->
+        </div>
+
+        <!-- 右側: 結果のテーブル -->
+        <div class="table-container" id="resultContainer">
+            <!-- 結果のテーブルがここに表示されます -->
+        </div>
+    </div>
+
+    <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const resultContainer = document.getElementById('resultContainer');
+        const imageContainer = document.getElementById('imageContainer');
+        const imageWidthDisplay = document.getElementById('imageWidthDisplay');
+        let imageWidthPx = 1920;  // 画像の横幅（ピクセル）。デフォルトを1920に設定
+
+        uploadForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const fileInput = document.getElementById('fileInput');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            // 元の画像を表示
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imageContainer.innerHTML = `<h3>Original Image:</h3><img src="${e.target.result}" alt="Original Image" id="original_image" />`;
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                // 結果をHTMLに表示
+                displayResult(result);
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultContainer.innerHTML = `<p style="color: red;">An error occurred: ${error.message}</p>`;
+            }
+        });
+
+        function displayResult(data) {
+            // 画像の横幅 (px) を更新
+            imageWidthPx = data.imageWidth;
+
+            // 画像の横幅を表示
+            imageWidthDisplay.innerHTML = `<strong>Image Width: ${imageWidthPx} px</strong>`;
+
+            // 体積と半径のテーブルを生成
+            let tableHTML = '<table>';
+            tableHTML += `
+                <tr>
+                    <th>Index</th>
+                    <th>Radius (px)</th>
+                    <th>Volume (px^3)</th>
+                    <th>Radius (µm)</th>
+                    <th>Volume (µm^3)</th>
+                </tr>
+            `;
+            data.radii.forEach((radius, index) => {
+                tableHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td class="radius-px">${radius.toFixed(2)}</td>
+                        <td class="volume-px">${data.volumes[index].toFixed(2)}</td>
+                        <td class="radius-um">-</td>
+                        <td class="volume-um">-</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += `
+                <tr>
+                    <th colspan="2">Total Volume (px^3)</th>
+                    <td>${data.totalVolume.toFixed(2)}</td>
+                    <td colspan="2" id="total-volume-um">-</td>
+                </tr>
+            `;
+            tableHTML += '</table>';
+
+            resultContainer.innerHTML = tableHTML;
+
+            // 処理された画像の表示
+            if (data.processedImg) {
+                imageContainer.innerHTML = `<h3>Processed Image:</h3><img src="/${data.processedImg}" alt="Processed Image" id="processed_image" />` + imageContainer.innerHTML;
+            }
+        }
+
+        // Enterキーでも変換処理を実行
+        document.getElementById('micrometerInput').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                convertToMicrometers();
+            }
+        });
+
+        function convertToMicrometers() {
+            const micrometerInput = document.getElementById('micrometerInput').value;
+            if (micrometerInput && micrometerInput > 0) {
+                const pxToMicrometerRatio = micrometerInput / imageWidthPx;
+                let totalVolumeUm = 0;
+
+                // 半径と体積の値を更新（新しい列に表示）
+                document.querySelectorAll('.radius-px').forEach((element, index) => {
+                    const radiusPx = parseFloat(element.textContent);
+                    const radiusMicrometer = radiusPx * pxToMicrometerRatio;
+                    document.querySelectorAll('.radius-um')[index].textContent = radiusMicrometer.toFixed(2) + ' µm';
+                });
+
+                document.querySelectorAll('.volume-px').forEach((element, index) => {
+                    const volumePx = parseFloat(element.textContent);
+                    const volumeMicrometer = volumePx * Math.pow(pxToMicrometerRatio, 3);
+                    document.querySelectorAll('.volume-um')[index].textContent = volumeMicrometer.toFixed(2) + ' µm^3';
+                    totalVolumeUm += volumeMicrometer;
+                });
+
+                // 合計体積を更新
+                document.getElementById('total-volume-um').textContent = totalVolumeUm.toFixed(2) + ' µm^3';
+            }
+        }
+    </script>
+</body>
+</html>
