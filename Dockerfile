@@ -47,6 +47,7 @@ COPY --from=go-builder /app/templates /app/templates
 
 COPY python/script.py /app/python/script.py
 RUN mkdir /app/processed_files /app/uploaded_files
+COPY how_to_use/how_to_use.png /app/how_to_use/how_to_use.png
 
 # アプリケーションのポートを公開
 EXPOSE 8080

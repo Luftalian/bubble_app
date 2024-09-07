@@ -45,6 +45,7 @@ func main() {
 	}))
 
 	e.Static("/processed_files", "processed_files")
+	e.Static("/how_to_use", "how_to_use")
 
 	// テンプレートのレンダラーをセットアップ
 	renderer := &TemplateRenderer{

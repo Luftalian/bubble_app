@@ -96,6 +96,8 @@
         const imageWidthDisplay = document.getElementById('imageWidthDisplay');
         let imageWidthPx = 1920;  // 画像の横幅（ピクセル）。デフォルトを1920に設定
 
+        imageContainer.innerHTML = `<h3>How to Use:</h3><img src="../how_to_use/how_to_use.png" alt="How to Use" id="how_to_use" />`;
+
         uploadForm.addEventListener('submit', async (event) => {
             event.preventDefault();
 
