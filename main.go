@@ -46,6 +46,7 @@ func main() {
 
 	e.Static("/processed_files", "processed_files")
 	e.Static("/how_to_use", "how_to_use")
+	e.Static("/with_circle_img", "with_circle_img")
 
 	// テンプレートのレンダラーをセットアップ
 	renderer := &TemplateRenderer{
@@ -58,6 +59,8 @@ func main() {
 
 	// ファイルアップロードのルート
 	e.POST("/upload", handleFileUpload)
+
+	e.POST("/upload_write_circle", handleFileUploadWriteCircle)
 
 	// サーバーを開始
 	e.Logger.Fatal(e.Start(":8080"))
@@ -118,6 +121,60 @@ func handleFileUpload(c echo.Context) error {
 		"processedImg": "processed_files/processed_" + file.Filename,
 	})
 }
+
+
+func handleFileUploadWriteCircle(c echo.Context) error {
+	fmt.Println("handleFileUploadWriteCircle")
+
+	// FormDataからfilePathを取得
+	filePath := c.FormValue("filePath")
+	if filePath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Missing filePath",
+		})
+	}
+
+	fmt.Println("Received filePath:", filePath)
+
+	// フォームからファイルを取得
+	file, err := c.FormFile("file")
+	if err != nil {
+		return err
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	// ファイルをサーバーに保存
+	savePath := filepath.Join("uploaded_files", file.Filename)
+	dst, err := os.Create(savePath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	if _, err = io.Copy(dst, src); err != nil {
+		return err
+	}
+
+	// Pythonスクリプトを実行
+	pythonScript := "python/circle.py" // Pythonスクリプトのパスを指定
+	csvPath := "circle_info/circles_" + filePath[:len(filePath)-4] + ".csv"
+	cmd := exec.Command("python3", pythonScript, savePath, csvPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to run python script: %v, output: %s", err, string(output))
+	}
+
+	// 結果を表示するHTMLをレンダリング
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"processedImg": "with_circle_img/output_with_circles_" + file.Filename,
+	})
+}
+
 
 // Pythonの出力を解析する関数
 func parsePythonOutput(output string) ([]float64, []float64, float64, int, error) {

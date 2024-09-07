@@ -46,7 +46,8 @@ COPY --from=python-builder /app /app
 COPY --from=go-builder /app/templates /app/templates
 
 COPY python/script.py /app/python/script.py
-RUN mkdir /app/processed_files /app/uploaded_files
+COPY python/circle.py /app/python/circle.py
+RUN mkdir /app/processed_files /app/uploaded_files /app/with_circle_img /app/circle_info
 COPY how_to_use/how_to_use.png /app/how_to_use/how_to_use.png
 
 # アプリケーションのポートを公開

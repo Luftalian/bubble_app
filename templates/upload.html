@@ -50,6 +50,24 @@
         .imageSize {
             margin-left: 50%;
         }
+        /* CSVダウンロードボタンのスタイル */
+        #downloadCsvBtn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            display: none; /* 初期状態では非表示 */
+        }
+        #downloadCsvBtn:hover {
+            background-color: #45a049;
+        }
+        /* 2つ目のアップロードフォーム（初期は非表示） */
+        #uploadRawForm {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -58,9 +76,16 @@
 
     <!-- アップロードフォームセクション -->
     <div id="uploadSection">
+        <!-- 1つ目のファイルアップロードフォーム -->
         <form id="uploadForm" enctype="multipart/form-data">
             <input type="file" name="file" id="fileInput" />
-            <input type="submit" value="Upload">
+            <input type="submit" value="Upload Image">
+        </form>
+        
+        <!-- 2つ目のファイルアップロードフォーム（Rawファイル用） -->
+        <form id="uploadRawForm" enctype="multipart/form-data">
+            <input type="file" name="rawFile" id="rawFileInput" />
+            <input type="submit" value="Upload Raw">
         </form>
     </div>
 
@@ -91,13 +116,16 @@
 
     <script>
         const uploadForm = document.getElementById('uploadForm');
+        const uploadRawForm = document.getElementById('uploadRawForm');
         const resultContainer = document.getElementById('resultContainer');
         const imageContainer = document.getElementById('imageContainer');
         const imageWidthDisplay = document.getElementById('imageWidthDisplay');
+        let imagePath = "";  // 最初にアップロードされた画像のパス
         let imageWidthPx = 1920;  // 画像の横幅（ピクセル）。デフォルトを1920に設定
 
         imageContainer.innerHTML = `<h3>How to Use:</h3><img src="../how_to_use/how_to_use.png" alt="How to Use" id="how_to_use" />`;
 
+        // 1つ目のファイルアップロード（画像用）
         uploadForm.addEventListener('submit', async (event) => {
             event.preventDefault();
 
@@ -119,6 +147,12 @@
                 });
 
                 const result = await response.json();
+                imagePath = fileInput.files[0].name;  // 画像のパスを保存
+
+                // 2つ目のアップロードフォームを表示
+                if (imagePath) {
+                    uploadRawForm.style.display = "block";
+                }
 
                 // 結果をHTMLに表示
                 displayResult(result);
@@ -129,6 +163,48 @@
             }
         });
 
+        // 2つ目のファイルアップロード
+        uploadRawForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const rawFileInput = document.getElementById('rawFileInput');
+            const formData = new FormData();
+            formData.append('rawFile', rawFileInput.files[0]);
+
+            if (!imagePath) {
+                alert("Please upload an image first.");
+                return;
+            }
+
+            // JSONボディとして画像ファイルのパスを送信
+            const requestBody = {
+                filePath: imagePath
+            };
+
+            
+            try {
+                // フォームデータを作成
+                const formData = new FormData();
+                formData.append('file', rawFileInput.files[0]);  // RAWファイルの追加
+                formData.append('filePath', imagePath);  // JSONデータとしてfilePathを追加
+
+                const response = await fetch('/upload_write_circle', {
+                    method: 'POST',
+                    body: formData  // JSONデータとファイルを含めたFormDataを送信
+                });
+
+                const result = await response.json();
+
+                // 処理された画像を表示
+                if (result.processedImg) {
+                    imageContainer.innerHTML = `<h3>Processed Image:</h3><img src="/${result.processedImg}" alt="Processed Image" id="processed_image" />` + imageContainer.innerHTML;
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+
         function displayResult(data) {
             // 画像の横幅 (px) を更新
             imageWidthPx = data.imageWidth;
@@ -136,8 +212,31 @@
             // 画像の横幅を表示
             imageWidthDisplay.innerHTML = `<strong>Image Width: ${imageWidthPx} px</strong>`;
 
+            // CSVダウンロードボタンを生成し、テーブルの上に配置
+            let csvButton = document.getElementById("downloadCsvBtn");
+            
+            // すでにボタンが存在する場合は削除して再生成
+            if (csvButton) {
+                csvButton.remove();
+            }
+
+            csvButton = document.createElement("button");
+            csvButton.id = "downloadCsvBtn";
+            csvButton.textContent = "Download CSV";
+            csvButton.style.display = "block";
+            csvButton.style.marginBottom = "10px";
+            csvButton.style.padding = "8px 16px";
+            csvButton.style.backgroundColor = "#4CAF50";
+            csvButton.style.color = "white";
+            csvButton.style.border = "none";
+            csvButton.style.cursor = "pointer";
+            csvButton.style.borderRadius = "5px";
+            
+            resultContainer.innerHTML = "";
+            resultContainer.appendChild(csvButton);  // CSVダウンロードボタンを先に追加
+
             // 体積と半径のテーブルを生成
-            let tableHTML = '<table>';
+            let tableHTML = '<table id="dataTable">';
             tableHTML += `
                 <tr>
                     <th>Index</th>
@@ -161,19 +260,57 @@
 
             tableHTML += `
                 <tr>
-                    <th colspan="2">Total Volume (px^3)</th>
+                    <th>Total Volume</th>
+                    <td>-</td>
                     <td>${data.totalVolume.toFixed(2)}</td>
-                    <td colspan="2" id="total-volume-um">-</td>
+                    <td>-</td>
+                    <td id="total-volume-um">-</td>
                 </tr>
             `;
             tableHTML += '</table>';
 
-            resultContainer.innerHTML = tableHTML;
+            resultContainer.innerHTML += tableHTML;  // テーブルをCSVダウンロードボタンの下に表示
 
             // 処理された画像の表示
             if (data.processedImg) {
                 imageContainer.innerHTML = `<h3>Processed Image:</h3><img src="/${data.processedImg}" alt="Processed Image" id="processed_image" />` + imageContainer.innerHTML;
             }
+
+            // ダウンロードボタンにクリックイベントを設定
+            const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+            if (downloadCsvBtn) {
+                downloadCsvBtn.onclick = downloadCSV;
+            }
+        }
+
+        // CSVダウンロード用の関数
+        function downloadCSV() {
+            console.log("Downloading CSV...");
+            const table = document.getElementById("dataTable");
+            
+            if (!table) {
+                console.error("テーブルが存在しません");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            const rows = table.querySelectorAll("tr");
+
+            // 各行をループしてCSV形式に変換
+            rows.forEach(row => {
+                const cols = row.querySelectorAll("th, td");
+                let rowContent = Array.from(cols).map(col => col.textContent).join(",");
+                csvContent += rowContent + "\r\n";
+            });
+
+            // CSVファイルとしてダウンロード
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "table_data.csv");
+            document.body.appendChild(link);
+
+            link.click();
         }
 
         // Enterキーでも変換処理を実行
@@ -194,18 +331,18 @@
                 document.querySelectorAll('.radius-px').forEach((element, index) => {
                     const radiusPx = parseFloat(element.textContent);
                     const radiusMicrometer = radiusPx * pxToMicrometerRatio;
-                    document.querySelectorAll('.radius-um')[index].textContent = radiusMicrometer.toFixed(2) + ' µm';
+                    document.querySelectorAll('.radius-um')[index].textContent = radiusMicrometer.toFixed(2);
                 });
 
                 document.querySelectorAll('.volume-px').forEach((element, index) => {
                     const volumePx = parseFloat(element.textContent);
                     const volumeMicrometer = volumePx * Math.pow(pxToMicrometerRatio, 3);
-                    document.querySelectorAll('.volume-um')[index].textContent = volumeMicrometer.toFixed(2) + ' µm^3';
+                    document.querySelectorAll('.volume-um')[index].textContent = volumeMicrometer.toFixed(2);
                     totalVolumeUm += volumeMicrometer;
                 });
 
                 // 合計体積を更新
-                document.getElementById('total-volume-um').textContent = totalVolumeUm.toFixed(2) + ' µm^3';
+                document.getElementById('total-volume-um').textContent = totalVolumeUm.toFixed(2);
             }
         }
     </script>

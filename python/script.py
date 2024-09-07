@@ -1,6 +1,7 @@
 import sys
 import cv2
 import numpy as np
+import csv
 
 # 引数から画像パスを取得
 image_path = sys.argv[1]
@@ -29,22 +30,24 @@ thickness = 2     # 太さを増やす
 
 # 各輪郭を円で近似し、半球の体積を計算
 output_image = image.copy()
+csv_data = []  # CSVに保存するためのデータを格納するリスト
 count = 0
+
 for contour in contours:
     if len(contour) >= 5:  # 輪郭が十分な点を持っていることを確認
         count += 1
         (x, y), radius = cv2.minEnclosingCircle(contour)
         radius = int(radius)  # 半径を整数に変換
-        
-        # 半球の体積を計算 V = (2/3) * π * r^3
-        volume = (2/3) * np.pi * (radius**3)
+        center = (int(x), int(y))
+
+        # 半球の体積を計算 V = (4/3) * π * r^3
+        volume = (4/3) * np.pi * (radius**3)
         
         # 半径と体積を出力
         print(f"radius: {radius}")
         print(f"volume: {volume}")
 
         # 近似された円を描画
-        center = (int(x), int(y))
         cv2.circle(output_image, center, radius, (0, 255, 0), 2)
 
         # 円の近くに半径と円番号を表示
@@ -52,6 +55,18 @@ for contour in contours:
         cv2.putText(output_image, text, (center[0], center[1] - 10),
                     font, font_scale, (255, 0, 0), thickness)
 
+        # CSV用のデータを保存
+        csv_data.append([count, radius/image_width, center[0]/image_width, center[1]/image_width])
+
 # 処理後の画像を保存
 processed_image_path = f"processed_files/processed_{image_path.split('/')[-1]}"
 cv2.imwrite(processed_image_path, output_image)
+
+# CSVファイルに半径と中心座標を保存
+csv_file_path = f"circle_info/circles_{image_path.split('/')[-1].replace('.png', '.csv').replace('.jpg', '.csv')}"
+with open(csv_file_path, mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["Circle #", "Radius (px)", "Center X", "Center Y"])
+    writer.writerows(csv_data)
+
+print(f"CSV file saved at {csv_file_path}")

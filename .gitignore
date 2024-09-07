@@ -1,3 +1,5 @@
 example.env
 processed_files
-upload_files
+uploaded_files
+circle_info
+with_circle_img
