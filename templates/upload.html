@@ -285,7 +285,6 @@
 
         // CSVダウンロード用の関数
         function downloadCSV() {
-            console.log("Downloading CSV...");
             const table = document.getElementById("dataTable");
             
             if (!table) {
@@ -307,7 +306,7 @@
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "table_data.csv");
+            link.setAttribute("download", "csv_"+imagePath+".csv");
             document.body.appendChild(link);
 
             link.click();
