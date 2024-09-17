@@ -32,17 +32,17 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	// 環境変数からユーザー名とパスワードを取得
-	username := os.Getenv("BASIC_AUTH_USERNAME")
-	password := os.Getenv("BASIC_AUTH_PASSWORD")
+	// // 環境変数からユーザー名とパスワードを取得
+	// username := os.Getenv("BASIC_AUTH_USERNAME")
+	// password := os.Getenv("BASIC_AUTH_PASSWORD")
 
-	// Basic認証を適用
-	e.Use(middleware.BasicAuth(func(u, p string, c echo.Context) (bool, error) {
-		if u == username && p == password {
-			return true, nil
-		}
-		return false, nil
-	}))
+	// // Basic認証を適用
+	// e.Use(middleware.BasicAuth(func(u, p string, c echo.Context) (bool, error) {
+	// 	if u == username && p == password {
+	// 		return true, nil
+	// 	}
+	// 	return false, nil
+	// }))
 
 	e.Static("/processed_files", "processed_files")
 	e.Static("/how_to_use", "how_to_use")
@@ -122,7 +122,6 @@ func handleFileUpload(c echo.Context) error {
 	})
 }
 
-
 func handleFileUploadWriteCircle(c echo.Context) error {
 	fmt.Println("handleFileUploadWriteCircle")
 
@@ -175,7 +174,6 @@ func handleFileUploadWriteCircle(c echo.Context) error {
 	})
 }
 
-
 // Pythonの出力を解析する関数
 func parsePythonOutput(output string) ([]float64, []float64, float64, int, error) {
 	var volumes []float64
@@ -201,7 +199,7 @@ func parsePythonOutput(output string) ([]float64, []float64, float64, int, error
 			volumes = append(volumes, volume)
 			totalVolume += volume
 		}
-		if strings.HasPrefix(line, "Image width (in pixels):") {  // 横幅のピクセル数を解析
+		if strings.HasPrefix(line, "Image width (in pixels):") { // 横幅のピクセル数を解析
 			widthStr := strings.TrimPrefix(line, "Image width (in pixels):")
 			width, err := strconv.Atoi(strings.TrimSpace(widthStr))
 			if err != nil {
